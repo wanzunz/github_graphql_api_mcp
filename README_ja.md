@@ -220,6 +220,12 @@ MCPクライアントでサーバーに接続した後、以下が可能です�
    """
    ```
 
+#### スクリーンショット例
+
+以下はGitHub GraphQL API MCPをClaudeで使用する例です：
+
+![GitHub GraphQL API MCP 使用例](img/github_graphql_usage_example.png)
+
 ## 注意事項
 
 - 使用前にGitHubトークンが適切な権限を持っていることを確認

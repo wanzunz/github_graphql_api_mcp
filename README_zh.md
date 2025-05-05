@@ -220,6 +220,12 @@ python github_graphql_api_mcp_server.py
    """
    ```
 
+#### 示例截图
+
+以下是使用 GitHub GraphQL API MCP 与 Claude 交互的示例：
+
+![GitHub GraphQL API MCP 使用示例](img/github_graphql_usage_example.png)
+
 ## 注意事项
 
 - 使用前请确保你的 GitHub 令牌具有适当的权限

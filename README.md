@@ -220,6 +220,12 @@ After connecting to the server with an MCP client, you can:
    """
    ```
 
+#### Example Screenshot
+
+Below is an example of using the GitHub GraphQL API MCP with Claude:
+
+![GitHub GraphQL API MCP Usage Example](img/github_graphql_usage_example.png)
+
 ## Notes
 
 - Make sure your GitHub token has appropriate permissions before use
