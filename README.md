@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/wanzunz-github-graphql-api-mcp-badge.png)](https://mseep.ai/app/wanzunz-github-graphql-api-mcp)
+
 # GitHub GraphQL API MCP
 
 [English](README.md) | [中文](README_zh.md) | [日本語](README_ja.md) | [Español](README_es.md) | [Français](README_fr.md)
