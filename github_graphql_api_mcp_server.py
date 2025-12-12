@@ -1,8 +1,10 @@
 from mcp.server.fastmcp import FastMCP
 from graphql import build_schema, OperationType
-from graphql.utilities import print_schema, print_value, print_introspection_schema, print_type  
+from graphql.utilities import print_schema, print_type
 import requests
 import os
+import json
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -11,7 +13,8 @@ load_dotenv()
 # Create an MCP server
 mcp = FastMCP("github_graphql_api_mcp_server")
 
-with open('schema.docs.graphql', 'r', encoding='utf-8') as f:
+SCHEMA_PATH = Path(__file__).resolve().parent / "schema.docs.graphql"
+with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
     schema_content = f.read()
 
 schema = build_schema(schema_content)
@@ -29,12 +32,19 @@ type_fields_name: field name like `repository` based on root type documentation
 Returns:
 str: Documentation content for the specified field
 """
-    object_type = schema.get_root_type(OperationType[type_name])
+    try:
+        op = OperationType[type_name.upper()]
+    except Exception:
+        return f"Invalid type_name: {type_name}. Expected one of: QUERY, MUTATION, SUBSCRIPTION."
+
+    object_type = schema.get_root_type(op)
     if hasattr(object_type, "fields"):
+        if type_fields_name not in object_type.fields:
+            return f"Field not found on {object_type.name}: {type_fields_name}"
         type_name_field = object_type.fields[type_fields_name]
         return print_type_field_docs(type_fields_name, type_name_field)
     else:
-        print("No fields attribute")
+        return "No fields attribute"
 
 
 def print_type_field_docs(name, field):
@@ -60,7 +70,12 @@ Args:
 Returns:
     str: Documentation content
 """
-    graphql_type = schema.get_root_type(OperationType[type_name])
+    try:
+        op = OperationType[type_name.upper()]
+    except Exception:
+        return f"Invalid type_name: {type_name}. Expected one of: QUERY, MUTATION, SUBSCRIPTION."
+
+    graphql_type = schema.get_root_type(op)
     doc_str = (f"# Type Name: {graphql_type.name}\n")
     if hasattr(graphql_type, 'description') and graphql_type.description:
         doc_str += (f"Description: {graphql_type.description}\n")
@@ -70,7 +85,7 @@ Returns:
     if hasattr(graphql_type, 'fields'):
         doc_str += ("## Fields:\n")
         for field_name, field in graphql_type.fields.items():
-            field_description = getattr(field, 'description', "No description\n\n")
+            field_description = getattr(field, "description", None) or "No description"
             doc_str += (f"### {field_name} \n ```markdown\n{field_description}\n```\n ")
     return doc_str
 
@@ -101,7 +116,8 @@ def call_github_graphql(graphql: str) -> str:
     try:
         # Set request headers including authorization
         headers = {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json",
         }
         if GITHUB_TOKEN:
             headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
@@ -110,11 +126,12 @@ def call_github_graphql(graphql: str) -> str:
 
         # Check response status
         if response.status_code == 200:
-            return response.json()
+            # MCP tool output is expected to be a string; serialize JSON response.
+            return json.dumps(response.json(), ensure_ascii=False)
         else:
             raise Exception(f"request failed: {response.status_code} - {response.text}")
     except Exception as e:
-        return f'{e}.'
+        return f"{e}."
 
 if __name__ == "__main__":
     # Initialize and run the server
