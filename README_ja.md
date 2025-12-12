@@ -4,6 +4,20 @@
 
 GitHub GraphQL APIのクエリと使用のためのMCP（Model Context Protocol）ベースのツールです。このプロジェクトは、MCP クライアントツール（Claude AIなど）を通じてGitHub GraphQLスキーマを探索し、GraphQLクエリを実行できるサーバーを提供します。
 
+## 目次
+
+- [なぜGitHub GraphQL APIを使用するのか](#なぜgithub-graphql-apiを使用するのか)
+- [アプリケーションシナリオ](#アプリケーションシナリオ)
+- [特徴](#特徴)
+- [公式 GitHub MCP Server との比較](#公式-github-mcp-server-との比較)
+- [前提条件](#前提条件)
+- [インストールと使用方法](#インストールと使用方法)
+- [Claudeデスクトップでの設定](#claudeデスクトップでの設定)
+- [利用可能なツール](#利用可能なツール)
+- [使用例](#使用例)
+- [注意事項](#注意事項)
+- [ライセンス](#ライセンス)
+
 ## なぜGitHub GraphQL APIを使用するのか
 
 GitHub GraphQL APIは従来のREST APIに比べて大きな利点があります：

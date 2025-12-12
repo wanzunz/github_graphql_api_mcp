@@ -4,6 +4,20 @@
 
 Un outil basé sur MCP (Model Context Protocol) pour interroger et utiliser l'API GraphQL de GitHub. Ce projet fournit un serveur qui vous permet d'explorer le schéma GraphQL de GitHub et d'exécuter des requêtes GraphQL via des outils clients MCP (comme Claude AI).
 
+## Table des Matières
+
+- [Pourquoi utiliser l'API GraphQL de GitHub](#pourquoi-utiliser-lapi-graphql-de-github)
+- [Scénarios d'application](#scénarios-dapplication)
+- [Caractéristiques](#caractéristiques)
+- [Comparaison avec le serveur MCP officiel GitHub](#comparaison-avec-le-serveur-mcp-officiel-github)
+- [Prérequis](#prérequis)
+- [Installation et Utilisation](#installation-et-utilisation)
+- [Configurer dans Claude Desktop](#configurer-dans-claude-desktop)
+- [Outils disponibles](#outils-disponibles)
+- [Exemples d'utilisation](#exemples-dutilisation)
+- [Remarques](#remarques)
+- [Licence](#licence)
+
 ## Pourquoi utiliser l'API GraphQL de GitHub
 
 L'API GraphQL de GitHub offre des avantages significatifs par rapport aux API REST traditionnelles :
