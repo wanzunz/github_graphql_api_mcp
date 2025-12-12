@@ -2,7 +2,7 @@
 
 [English](README.md) | [中文](README_zh.md) | [日本語](README_ja.md) | [Español](README_es.md) | [Français](README_fr.md)
 
-GitHub GraphQL APIのクエリと使用のためのMCP（Model Control Protocol）ベースのツールです。このプロジェクトは、MCP クライアントツール（Claude AIなど）を通じてGitHub GraphQLスキーマを探索し、GraphQLクエリを実行できるサーバーを提供します。
+GitHub GraphQL APIのクエリと使用のためのMCP（Model Context Protocol）ベースのツールです。このプロジェクトは、MCP クライアントツール（Claude AIなど）を通じてGitHub GraphQLスキーマを探索し、GraphQLクエリを実行できるサーバーを提供します。
 
 ## なぜGitHub GraphQL APIを使用するのか
 
@@ -46,78 +46,90 @@ GraphQLの柔軟なクエリ機能により、以下の高度な分析機能も�
 - GitHub GraphQL APIクエリを直接実行し、必要なデータを正確に取得してトークン消費を削減
 - 多言語サポート（英語/中国語/日本語など）
 
+## 公式 GitHub MCP Server との比較
+
+公式の [github-mcp-server](https://github.com/github/github-mcp-server) と比較して、このプロジェクトは特定のシナリオにおいて明確な利点を提供します：
+
+| 機能 | GitHub GraphQL API MCP | 公式 GitHub MCP Server |
+|------|------------------------|------------------------|
+| **コアメカニズム** | 単一の GraphQL クエリ | 複数の REST API / 粒度の細かいツール |
+| **データ取得** | **ワンショット**：リポジトリの詳細、Issue、PR、履歴、リリースを一度のリクエストで取得可能 | **マルチステップ**：`search_repositories`、`get_file_contents`、`list_commits` など、複数のツールを連鎖させる必要がある |
+| **効率** | 高い。ネットワーク遅延と往復回数を最小限に抑える。 | 複雑なデータ収集では低い。連続したツール呼び出しによる高い遅延が発生する。 |
+| **トークン使用量** | **最適化**。リクエストされたフィールドのみを返す。 | **高い**。中間ツールの出力（完全な JSON レスポンス）がコンテキストウィンドウを消費する。 |
+| **柔軟性** | **高い**。クライアントが必要な正確なデータ構造を定義できる。 | **固定**。クライアントは事前定義された API レスポンス構造を使用する必要がある。 |
+| **API カバレッジ** | **完全**。GitHub GraphQL API で公開されているすべてのフィールドにアクセス可能。 | **部分的**。メンテナによってハードコードされた特定の REST エンドポイントに限定される。 |
+| **イントロスペクション** | **組み込み**。AI はスキーマをクエリして新しい API フィールドについて動的に学習できる。 | **なし**。AI はトレーニングデータに依存する。ツールの更新なしに新しい API 機能を発見できない。 |
+| **保守性** | **ゼロコード更新**。多くの場合、GitHub の新機能をサポートするためにスキーマファイルを更新するだけで済む。 | **コード重視**。新機能ごとに新しい Go ハンドラと構造体定義を作成する必要がある。 |
+| **複雑さ** | LLM が GraphQL を記述する必要がある（スキーマイントロスペクションツールによってサポート）。 | 単純な関数呼び出しを好む LLM には簡単だが、呼び出し間の状態管理が難しい。 |
+
+**例**：「プロジェクトの最新の重要な更新」を取得するには、このツールはリリース、最近のコミット、未解決の Issue を**一度に**取得できますが、公式サーバーでは 5 回以上の個別のツール呼び出しと往復が必要になる場合があります。
+
+### AI エージェントにとって重要な理由
+
+1.  **コンテキストウィンドウの効率**：公式ツールはしばしば巨大な JSON オブジェクト（例：完全なリポジトリオブジェクトは 5KB 以上になることがある）を返します。GraphQL を使用すると、`name` と `description` のみを取得でき、トークンを 99% 節約できます。これは長い会話や複雑なタスクにとって重要です。
+2.  **複雑な推論**：AI エージェントはしばしばデータ関係をたどる必要があります（例：「この Issue をクローズした PR の作成者を見つける」）。REST/公式ツールでは、これは「検索 -> ID 取得 -> PR 取得 -> 作成者取得」というマルチステップのプロセスになります。GraphQL では、これは単一のネストされたクエリであり、AI はデータの配管ではなく論理的な推論に集中できます。
+3.  **将来への対応**：GitHub が新機能（例：Discussions の新しいフィールド）を追加した場合、この MCP サーバーはスキーマイントロスペクションを通じて即座にサポートできますが、公式サーバーはコードの更新を待つ必要があります。
+
 ## 前提条件
 
 - Python 3.10以上
 - GitHub個人アクセストークン（GitHub APIにアクセスするため）
 - Poetry（推奨される依存関係管理ツール）
 
-## インストール
+## インストールと使用方法
 
-1. リポジトリをクローン：
+管理には現在最速かつ最もシンプルなPythonプロジェクト管理ツールである[uv](https://github.com/astral-sh/uv)を使用することをお勧めします。また、標準のpipを使用することもできます。
 
-```bash
-git clone https://github.com/wanzunz/github_graphql_api_mcp.git
-cd github_graphql_api_mcp
-```
+### 方法1：uvを使用する（推奨、最速）
 
-2. Poetryを使用して依存関係をインストール：
+uvを使用すると、仮想環境を手動で作成したり依存関係をインストールしたりする必要はなく、すべて自動的に処理されます。
 
-```bash
-# まだPoetryをインストールしていない場合は、最初にインストール：
-# curl -sSL https://install.python-poetry.org | python3 -
+1.  **uvをインストール**（すでにインストール済みの場合はスキップ）：
+    ```bash
+    # MacOS / Linux
+    curl -lsSf https://astral.sh/uv/install.sh | sh
 
-# Poetryを使用して依存関係をインストール
-poetry install
+    # Windows
+    powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+    ```
 
-# 仮想環境を有効化
-poetry shell
-```
+2.  **環境変数を設定**：
+    `.env.example`を`.env`にコピーし、GitHubトークンを入力します：
+    ```bash
+    cp .env.example .env
+    # .envファイルを編集してトークンを入力
+    ```
 
-Poetryを使用しない場合は、従来の方法を使用できます：
+3.  **ワンクリック実行**：
+    ```bash
+    uv run github_graphql_api_mcp_server.py
+    ```
+    *uvは自動的に仮想環境を作成し、すべての依存関係をダウンロードしてインストールし、サーバーを起動します。*
 
-```bash
-# 仮想環境を作成して有効化
-python -m venv .venv
-source .venv/bin/activate  # Linux/MacOS
-# または
-.venv\Scripts\activate  # Windows
+### 方法2：標準のpip
 
-# 依存関係をインストール
-pip install -e .
-```
+追加のツールをインストールしたくない場合は、従来のPython方式を使用できます：
 
-3. 環境変数を設定：
+1.  **仮想環境の作成と有効化**：
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate  # Windows: .venv\Scripts\activate
+    ```
 
-`.env`ファイルを作成し、GitHubの個人アクセストークンを追加：
+2.  **依存関係のインストール**：
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-```
-GITHUB_TOKEN="your_github_token_here"
-```
+3.  **環境変数を設定**：
+    上記と同様に`.env`ファイルを作成して設定します。
 
-`.env.example`ファイルをコピーして作成できます：
+4.  **実行**：
+    ```bash
+    python github_graphql_api_mcp_server.py
+    ```
 
-```bash
-cp .env.example .env
-```
-
-その後、`.env`ファイルを編集し、`your_github_token_here`を実際のGitHubトークンに置き換えます。
-
-## 使用方法
-
-### サーバーの起動
-
-Poetry仮想環境が有効化されていることを確認し（`poetry shell`）、次に実行：
-
-#### 実行
-
-```bash
-python github_graphql_api_mcp_server.py
-```
-
-サーバーが起動したら、MCPクライアント（Claude AIなど）を通じて接続できます。
-
-### Claudeデスクトップでの設定
+## Claudeデスクトップでの設定
 
 Claudeデスクトップアプリでこのサーバーを設定し、ワンクリックで起動できます：
 
@@ -129,11 +141,11 @@ Claudeデスクトップアプリでこのサーバーを設定し、ワンク�
 {
     "mcpServers": {
         "github_mcp": {
-            "command": "<Pythonインタープリターのパス>",
+            "command": "/path/to/uv",
             "args": [
+                "run",
                 "--directory",
                 "<プロジェクトパス>",
-                "run",
                 "github_graphql_api_mcp_server.py"
             ]
         }
@@ -141,35 +153,32 @@ Claudeデスクトップアプリでこのサーバーを設定し、ワンク�
 }
 ```
 
-設定例：
+設定例（uvを使用）：
 
 ```json
 {
     "mcpServers": {
         "github_mcp": {
-            "command": "/usr/bin/python3",
+            "command": "/Users/username/.cargo/bin/uv",
             "args": [
-                "--directory",
-                "/home/user/projects/github_graphql_api_mcp/",
                 "run",
-                "github_graphql_api_mcp_server.py"
-            ]
-        }
-    }
-}
-```
-
-condaやその他の環境管理ツールを使用している場合：
-
-```json
-{
-    "mcpServers": {
-        "github_mcp": {
-            "command": "/opt/miniconda3/bin/python",
-            "args": [
                 "--directory",
                 "/Users/username/github/github_graphql_api_mcp/",
-                "run",
+                "github_graphql_api_mcp_server.py"
+            ]
+        }
+    }
+}
+```
+
+標準Pythonを使用する場合（方法2）：
+
+```json
+{
+    "mcpServers": {
+        "github_mcp": {
+            "command": "/path/to/project/.venv/bin/python",
+            "args": [
                 "github_graphql_api_mcp_server.py"
             ]
         }

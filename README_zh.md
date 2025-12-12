@@ -2,7 +2,19 @@
 
 [English](README.md) | [中文](README_zh.md) | [日本語](README_ja.md) | [Español](README_es.md) | [Français](README_fr.md)
 
-这是一个基于 MCP (Model Control Protocol) 的工具，用于查询和使用 GitHub GraphQL API。项目提供了一个服务器，允许你通过 MCP 客户端工具（如 Claude AI）探索 GitHub GraphQL 架构并执行 GraphQL 查询。
+这是一个基于 MCP (Model Context Protocol) 的工具，用于查询和使用 GitHub GraphQL API。项目提供了一个服务器，允许你通过 MCP 客户端工具（如 Claude AI）探索 GitHub GraphQL 架构并执行 GraphQL 查询。
+
+## 目录
+
+- [为什么使用 GitHub GraphQL API](#为什么使用-github-graphql-api)
+- [应用场景](#应用场景)
+- [特性](#特性)
+- [与官方 GitHub MCP Server 的对比](#与官方-github-mcp-server-的对比)
+- [前提条件](#前提条件)
+- [安装](#安装)
+- [使用方法](#使用方法)
+- [注意事项](#注意事项)
+- [许可证](#许可证)
 
 ## 为什么使用 GitHub GraphQL API
 
@@ -44,7 +56,31 @@ GitHub GraphQL API 相比传统 REST API 具有显著优势：
 - 获取特定类型的详细文档
 - 查询特定字段的文档和参数
 - 直接执行 GitHub GraphQL API 查询，精确获取所需数据，减少 Token 消耗
-- 中英双语支持
+- 多语言支持（英语/中文/日语/西班牙语/法语）
+
+## 与官方 GitHub MCP Server 的对比
+
+相较于官方的 [github-mcp-server](https://github.com/github/github-mcp-server)，本项目在特定场景下具有显著优势：
+
+| 特性 | GitHub GraphQL API MCP | 官方 GitHub MCP Server |
+|------|------------------------|------------------------|
+| **核心机制** | 单一 GraphQL 查询 | 多个 REST API / 细粒度工具 |
+| **数据获取** | **一次性完成**：单次请求即可获取仓库详情、Issue、PR、提交历史和发布版本 | **多步骤**：需要串行调用 `search_repositories`, `get_file_contents`, `list_commits` 等多个工具 |
+| **效率** | 高。极大减少网络延迟和交互往返次数。 | 在复杂数据获取时较低。多次串行工具调用导致高延迟。 |
+| **Token 消耗** | **优化**。仅返回请求的字段。 | **较高**。中间步骤的工具输出（完整的 JSON 响应）会占用上下文窗口。 |
+| **灵活性** | **极高**。客户端定义所需的确切数据结构。 | **固定**。客户端必须处理预定义的 API 响应结构。 |
+| **API 覆盖范围** | **完整**。可访问 GitHub GraphQL API 暴露的所有数据和功能。 | **有限**。仅限于维护者手动封装和暴露的特定 REST 端点。 |
+| **自我内省** | **支持**。AI 可通过工具查询 API 定义，自主学习并适应新功能。 | **不支持**。AI 只能依赖训练数据中的知识，对新推出的 API 无能为力。 |
+| **维护成本** | **极低**。支持 GitHub 新功能通常只需更新 Schema 文件，无需改代码。 | **较高**。每个新功能都需要编写 Go 代码、定义结构体并重新发布版本。 |
+| **复杂度** | 需要 LLM 编写 GraphQL（通过架构内省工具辅助）。 | 对偏好简单函数调用的 LLM 更友好，但需管理多次调用的上下文。 |
+
+**示例**：要获取"某项目的最新重要更新"，本工具可以**一次性**拉取 Release 信息、最近提交和未解决 Issue，而官方 Server 可能需要 5 次以上的独立工具调用和往返交互。
+
+### 为什么这对 AI Agent 很重要？
+
+1.  **上下文窗口效率**：官方工具通常返回巨大的 JSON 对象（例如，一个完整的仓库对象可能超过 5KB）。使用 GraphQL，你可以只获取 `name` 和 `description`，节省 99% 的 Token。这对于长对话和复杂任务至关重要。
+2.  **复杂推理能力**：AI Agent 经常需要遍历数据关系（例如"找到关闭了这个 Issue 的 PR 的作者"）。在 REST/官方工具中，这是一个"搜索 -> 获取 ID -> 获取 PR -> 获取作者"的多步过程，容易出错且耗时。在 GraphQL 中，这是一个单一的嵌套查询，让 AI 可以专注于逻辑推理而不是数据搬运。
+3.  **未来适应性**：当 GitHub 添加新功能（例如在 Discussions 上添加新字段）时，本 MCP Server 可以通过 Schema 内省立即支持，而官方 Server 则需要等待代码更新和发版。
 
 ## 前提条件
 
@@ -84,7 +120,7 @@ source .venv/bin/activate  # Linux/MacOS
 .venv\Scripts\activate  # Windows
 
 # 安装依赖
-pip install -e .
+pip install -r requirements.txt
 ```
 
 3. 配置环境变量：
@@ -129,11 +165,11 @@ python github_graphql_api_mcp_server.py
 {
     "mcpServers": {
         "github_mcp": {
-            "command": "<你的Python解释器路径>",
+            "command": "/path/to/uv",
             "args": [
+                "run",
                 "--directory",
                 "<项目路径>",
-                "run",
                 "github_graphql_api_mcp_server.py"
             ]
         }
@@ -141,35 +177,32 @@ python github_graphql_api_mcp_server.py
 }
 ```
 
-配置示例：
+配置示例（使用 uv）：
 
 ```json
 {
     "mcpServers": {
         "github_mcp": {
-            "command": "/usr/bin/python3",
+            "command": "/Users/username/.cargo/bin/uv",
             "args": [
-                "--directory",
-                "/home/user/projects/github_graphql_api_mcp/",
                 "run",
-                "github_graphql_api_mcp_server.py"
-            ]
-        }
-    }
-}
-```
-
-如果你使用 conda 或其他环境管理工具：
-
-```json
-{
-    "mcpServers": {
-        "github_mcp": {
-            "command": "/opt/miniconda3/bin/python",
-            "args": [
                 "--directory",
                 "/Users/username/github/github_graphql_api_mcp/",
-                "run",
+                "github_graphql_api_mcp_server.py"
+            ]
+        }
+    }
+}
+```
+
+如果使用标准 Python（方法二）：
+
+```json
+{
+    "mcpServers": {
+        "github_mcp": {
+            "command": "/path/to/project/.venv/bin/python",
+            "args": [
                 "github_graphql_api_mcp_server.py"
             ]
         }
